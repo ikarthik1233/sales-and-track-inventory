@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api.js';
-import { IndianRupee, FileText, AlertTriangle, TrendingUp, RefreshCw, ChevronRight } from 'lucide-react';
+import { DollarSign, FileText, AlertTriangle, TrendingUp, RefreshCw, ChevronRight } from 'lucide-react';
 
 export default function Dashboard({ setActiveTab }) {
   const [data, setData] = useState(null);
@@ -36,14 +36,13 @@ export default function Dashboard({ setActiveTab }) {
 
   const { todaySales, todayTransactions, lowStockCount, lowStockProducts, trend } = data;
 
-  // Custom SVG Trend Line Chart Coordinates Calculation
   const width = 500;
   const height = 180;
   const padding = 30;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
-  const maxVal = Math.max(...trend.map(t => t.totalSales), 50) * 1.15; // add 15% head room
+  const maxVal = Math.max(...trend.map(t => t.totalSales), 50) * 1.15;
 
   const points = trend.map((day, index) => {
     const x = padding + (index / (trend.length - 1)) * chartWidth;
@@ -61,11 +60,10 @@ export default function Dashboard({ setActiveTab }) {
 
   return (
     <div>
-      {/* KPI Cards */}
       <div className="kpi-grid">
         <div className="card kpi-card">
           <div className="kpi-icon-wrapper" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
-            <IndianRupee size={24} />
+            <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>₹</span>
           </div>
           <div className="kpi-details">
             <span className="kpi-label">Today's Sales</span>
@@ -94,8 +92,7 @@ export default function Dashboard({ setActiveTab }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
-        {/* SVG Trend Chart */}
+      <div className="dashboard-charts-grid">
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -113,7 +110,6 @@ export default function Dashboard({ setActiveTab }) {
                 </linearGradient>
               </defs>
 
-              {/* Grid Lines */}
               {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
                 const y = padding + ratio * chartHeight;
                 const value = maxVal * (1 - ratio);
@@ -127,13 +123,9 @@ export default function Dashboard({ setActiveTab }) {
                 );
               })}
 
-              {/* Gradient Area Fill */}
               {areaPoints && <polygon points={areaPoints} fill="url(#chartGrad)" />}
-
-              {/* Trend Line */}
               {linePath && <path d={linePath} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
 
-              {/* Point Circles */}
               {points.map((p, index) => (
                 <circle
                   key={index}
@@ -149,7 +141,6 @@ export default function Dashboard({ setActiveTab }) {
                 />
               ))}
 
-              {/* X Axis Labels */}
               {points.map((p, index) => (
                 <text key={index} x={p.x} y={height - padding + 15} textAnchor="middle" fontSize="8" fill="var(--text-muted)" fontWeight="500">
                   {p.label}
@@ -157,7 +148,6 @@ export default function Dashboard({ setActiveTab }) {
               ))}
             </svg>
 
-            {/* Hover Tooltip */}
             {hoveredPoint !== null && (
               <div style={{
                 position: 'absolute',
@@ -184,7 +174,6 @@ export default function Dashboard({ setActiveTab }) {
           </div>
         </div>
 
-        {/* Low Stock Alerts */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', color: lowStockCount > 0 ? 'var(--danger)' : 'var(--text-main)' }}>
             <AlertTriangle size={20} /> Low Stock Warnings

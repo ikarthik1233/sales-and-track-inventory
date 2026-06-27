@@ -1,27 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api.js';
-import { Search, Filter, ShoppingCart, Trash2, Plus, Minus, Check, RefreshCw, Printer, AlertTriangle } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, Check, RefreshCw, Printer, AlertTriangle, User } from 'lucide-react';
 
 export default function SalesPOS() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Search & Category Filters
+  
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
 
+  // Customer Name state (optional)
+  const [customerName, setCustomerName] = useState('');
+
   // Cart State
-  const [cart, setCart] = useState([]); // Array of { product, quantity }
+  const [cart, setCart] = useState([]);
   const [finalTotalInput, setFinalTotalInput] = useState('');
   const [isTotalEdited, setIsTotalEdited] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
 
-  // Checkout Success State
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedSale, setCompletedSale] = useState(null);
-  const [customerName, setCustomerName] = useState('');
 
   const fetchProducts = async () => {
     try {
@@ -41,7 +41,6 @@ export default function SalesPOS() {
     fetchProducts();
   }, []);
 
-  // Sync final total whenever cart updates (if not manually overridden)
   const calculatedTotal = cart.reduce((total, item) => total + item.product.price * item.quantity, 0);
 
   useEffect(() => {
@@ -60,9 +59,9 @@ export default function SalesPOS() {
           alert(`Cannot add more. Only ${product.stockQuantity} items in stock.`);
           return prevCart;
         }
-        return prevCart.map(item =>
-          item.product._id === product._id
-            ? { ...item, quantity: item.quantity + 1 }
+        return prevCart.map(item => 
+          item.product._id === product._id 
+            ? { ...item, quantity: item.quantity + 1 } 
             : item
         );
       }
@@ -119,27 +118,24 @@ export default function SalesPOS() {
     setCheckoutLoading(true);
 
     const payload = {
+      customerName: customerName.trim(),
       items: cart.map(item => ({
         productId: item.product._id,
         quantity: item.quantity
       })),
-      finalTotal: finalTotalValue,
-      customerName: customerName.trim()
+      finalTotal: finalTotalValue
     };
 
     try {
-      console.log('Sending checkout payload:', payload);
       const response = await api.post('/sales', payload);
       setCompletedSale(response.data);
       setShowReceipt(true);
-
-      // Clear Cart & resets
+      
       setCart([]);
       setCustomerName('');
       setIsTotalEdited(false);
       setFinalTotalInput('');
-
-      // Refresh inventory levels in POS
+      
       fetchProducts();
     } catch (err) {
       setCheckoutError(err.response?.data?.message || 'Error occurred during checkout.');
@@ -148,25 +144,58 @@ export default function SalesPOS() {
     }
   };
 
-  // Filter Catalog
-  const categories = [...new Set(products.map(p => p.category))].sort();
+  // Helper date formatter: e.g. "26 Jun 2026, 1:25 PM"
+  const formatReceiptDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const optionsDate = { day: 'numeric', month: 'short', year: 'numeric' };
+    const optionsTime = { hour: 'numeric', minute: '2-digit', hour12: true };
+    
+    // Formatting cleanly using standard JavaScript Date formatter
+    const dStr = date.toLocaleDateString('en-US', optionsDate); // "Jun 26, 2026"
+    const tStr = date.toLocaleTimeString('en-US', optionsTime); // "1:25 PM"
+    
+    // Convert "Jun 26, 2026" to "26 Jun 2026"
+    const parts = dStr.replace(',', '').split(' ');
+    if (parts.length === 3) {
+      return `${parts[1]} ${parts[0]} ${parts[2]}, ${tStr}`;
+    }
+    return `${dStr}, ${tStr}`;
+  };
 
+  const categories = [...new Set(products.map(p => p.category))].sort();
+  
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
+                          p.category.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === '' || p.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
   return (
     <div>
+      {/* Customer Name input at top of POS */}
+      <div className="card" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+          <User size={18} />
+          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Customer (Optional):</span>
+        </div>
+        <input
+          type="text"
+          className="form-input"
+          style={{ flex: 1, minWidth: '220px', maxWidth: '400px' }}
+          placeholder="Enter customer name (defaults to Walk-in Customer)"
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
+        />
+      </div>
+
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px' }}><RefreshCw className="animate-spin" /> Loading catalog...</div>
       ) : error ? (
         <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>
       ) : (
-        <div className="pos-layout no-print">
-          {/* Left Panel: Catalog Selector */}
+        <div className="pos-layout">
           <div className="pos-catalog">
             <div className="card" style={{ padding: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
               <div style={{ position: 'relative', flex: 1 }}>
@@ -201,10 +230,10 @@ export default function SalesPOS() {
                 const isOutOfStock = prod.stockQuantity < 1;
                 const isLowStock = prod.stockQuantity < prod.lowStockThreshold;
                 const quantityInCart = cart.find(item => item.product._id === prod._id)?.quantity || 0;
-
+                
                 return (
-                  <div
-                    key={prod._id}
+                  <div 
+                    key={prod._id} 
                     className={`product-item-card ${isOutOfStock ? 'out-of-stock' : ''}`}
                     onClick={() => !isOutOfStock && addToCart(prod)}
                   >
@@ -254,23 +283,10 @@ export default function SalesPOS() {
             </div>
           </div>
 
-          {/* Right Panel: Checkout Cart */}
           <div className="card pos-cart">
             <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <ShoppingCart size={20} color="var(--primary)" /> Shopping Cart
             </h3>
-
-            <div className="form-group" style={{ margin: '12px 0 0 0' }}>
-              <label className="form-label" style={{ marginBottom: '6px', fontSize: '0.85rem' }}>Customer Name (Optional)</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Enter customer name..."
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                disabled={checkoutLoading}
-              />
-            </div>
 
             {checkoutError && (
               <div style={{
@@ -294,7 +310,7 @@ export default function SalesPOS() {
               {cart.length === 0 ? (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   <ShoppingCart size={48} strokeWidth={1} />
-                  <span>Cart is empty. Click products on the left to add items.</span>
+                  <span>Cart is empty. Select products.</span>
                 </div>
               ) : (
                 cart.map(item => (
@@ -317,8 +333,8 @@ export default function SalesPOS() {
                         ₹{(item.product.price * item.quantity).toFixed(2)}
                       </span>
 
-                      <button
-                        className="btn btn-secondary btn-icon"
+                      <button 
+                        className="btn btn-secondary btn-icon" 
                         onClick={() => removeFromCart(item.product._id)}
                         style={{ color: 'var(--danger)', padding: '6px', borderRadius: '50%' }}
                       >
@@ -330,9 +346,8 @@ export default function SalesPOS() {
               )}
             </div>
 
-            {/* Total Panel and checkout form */}
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifycontent: 'space-between', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Calculated Total:</span>
                 <span style={{ fontWeight: 700, fontSize: '1rem' }}>₹{calculatedTotal.toFixed(2)}</span>
               </div>
@@ -341,9 +356,9 @@ export default function SalesPOS() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label className="form-label" style={{ margin: 0 }}>Final Total Override (₹) *</label>
                   {isTotalEdited && (
-                    <button
-                      type="button"
-                      onClick={resetTotalOverride}
+                    <button 
+                      type="button" 
+                      onClick={resetTotalOverride} 
                       style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                     >
                       Reset to Auto
@@ -383,108 +398,78 @@ export default function SalesPOS() {
         </div>
       )}
 
-      {/* POS Checkout Success Modal / Receipt view */}
+      {/* POS Checkout Success Modal / Receipt View */}
       {showReceipt && completedSale && (
         <div className="modal-overlay">
-          <div className="card modal-content" style={{ padding: '32px', maxWidth: '440px', fontFamily: 'var(--font-family)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)' }}>
-
-            {/* Check success icon */}
-            <div className="no-print" style={{ textAlign: 'center', marginBottom: '12px' }}>
-              <div style={{
-                width: '44px',
-                height: '44px',
+          <div className="card modal-content" style={{ padding: '28px', maxWidth: '420px', border: '1px solid var(--border-color)' }}>
+            <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '1px dashed var(--border-color)', paddingBottom: '16px' }}>
+              <div className="no-print" style={{
+                width: '48px',
+                height: '48px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--success-light)',
                 color: 'var(--success)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                marginBottom: '12px'
               }}>
-                <Check size={24} />
+                <Check size={28} />
               </div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>BUSINESS INVOICE</h2>
+              
+              {/* Customer Name Display */}
+              <div style={{ marginTop: '8px', padding: '6px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', fontSize: '0.9rem', fontWeight: 600 }}>
+                Customer: {completedSale.customerName || 'Walk-in Customer'}
+              </div>
+
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                <strong>Invoice ID:</strong> {completedSale._id}<br />
+                <strong>Date & Time:</strong> {formatReceiptDate(completedSale.date)}
+              </p>
             </div>
 
-            {/* Header: Business Name & Subtitle */}
-            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-              <h2 style={{ fontSize: '1.45rem', fontWeight: 800, margin: '0 0 4px 0', letterSpacing: '0.5px', color: 'var(--text-main)', textTransform: 'uppercase' }}>Invoice</h2>
-              <div style={{ borderTop: '2px double var(--border-color)', margin: '14px 0 0 0' }}></div>
-            </div>
-
-            {/* Customer & Date Info Section */}
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.7', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Customer Name:</span>
-                <span style={{ fontWeight: 700 }}>{completedSale.customerName || "-"}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Date & Time:</span>
-                <span style={{ fontWeight: 500 }}>{new Date(completedSale.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Invoice ID:</span>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 500 }}>{completedSale._id}</span>
-              </div>
-              <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '14px' }}></div>
-            </div>
-
-            {/* Itemized Table Section */}
-            <div style={{ marginBottom: '16px' }}>
-              <table style={{ width: '100%', fontSize: '0.9rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', fontWeight: 'bold', color: 'var(--text-muted)' }}>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Item</th>
-                    <th style={{ textAlign: 'center', paddingBottom: '8px', width: '40px' }}>Qty</th>
-                    <th style={{ textAlign: 'right', paddingBottom: '8px', width: '80px' }}>Price</th>
-                    <th style={{ textAlign: 'right', paddingBottom: '8px', width: '90px' }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completedSale.items.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'left', fontWeight: 500 }}>{item.name}</td>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'center' }}>{item.quantity}</td>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'right' }}>₹{item.price.toFixed(2)}</td>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'right', fontWeight: 600 }}>₹{(item.price * item.quantity).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '10px' }}></div>
-            </div>
-
-            {/* Totals Section */}
-            <div style={{ fontSize: '0.925rem', lineHeight: '1.7', marginBottom: '22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Calculated Total:</span>
-                <span style={{ textAlign: 'right', fontWeight: 500 }}>₹{completedSale.calculatedTotal.toFixed(2)}</span>
-              </div>
-
-              {completedSale.finalTotal !== completedSale.calculatedTotal && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--warning)', fontWeight: 600, padding: '2px 0' }}>
-                  <span>Price Override Discount:</span>
-                  <span style={{ textAlign: 'right' }}>-₹{(completedSale.calculatedTotal - completedSale.finalTotal).toFixed(2)}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', borderBottom: '1px dashed var(--border-color)', paddingBottom: '16px' }}>
+              {completedSale.items.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                  <span>{item.name} (x{item.quantity})</span>
+                  <span style={{ fontWeight: 600 }}>₹{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
-              )}
+              ))}
+            </div>
 
-              <div style={{ borderTop: '2px double var(--border-color)', margin: '10px 0 8px 0' }}></div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.35rem', fontWeight: 800 }}>
-                <span style={{ color: 'var(--text-main)', letterSpacing: '0.25px' }}>FINAL TOTAL:</span>
-                <span style={{ color: completedSale.finalTotal !== completedSale.calculatedTotal ? 'var(--warning)' : 'var(--primary)', textAlign: 'right' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Calculated Total:</span>
+                <span>₹{completedSale.calculatedTotal.toFixed(2)}</span>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                <span>Final Billed:</span>
+                <span style={{ color: completedSale.finalTotal !== completedSale.calculatedTotal ? 'var(--warning)' : 'inherit' }}>
                   ₹{completedSale.finalTotal.toFixed(2)}
                 </span>
               </div>
-              <div style={{ borderTop: '2px double var(--border-color)', marginTop: '8px' }}></div>
+
+              {completedSale.finalTotal !== completedSale.calculatedTotal && (
+                <div style={{
+                  textAlign: 'right',
+                  fontSize: '0.75rem',
+                  color: 'var(--warning)',
+                  fontWeight: 600
+                }}>
+                  Adjusted Discount: -₹{(completedSale.calculatedTotal - completedSale.finalTotal).toFixed(2)}
+                </div>
+              )}
             </div>
 
-            {/* Actions Footer */}
             <div className="no-print" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <button
-                className="btn btn-secondary"
+              <button 
+                className="btn btn-secondary" 
                 onClick={() => window.print()}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                <Printer size={16} /> Print
+                <Printer size={16} /> Print Receipt
               </button>
               <button className="btn btn-primary" onClick={() => setShowReceipt(false)}>
                 Done

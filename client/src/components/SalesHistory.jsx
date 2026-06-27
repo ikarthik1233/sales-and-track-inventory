@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api.js';
-import { Search, Calendar, Filter, Eye, Trash2, RefreshCw, X, AlertTriangle, Printer, RotateCcw } from 'lucide-react';
+import { Calendar, Filter, Eye, RefreshCw, X, Printer, RotateCcw, User } from 'lucide-react';
 
 export default function SalesHistory() {
   const [sales, setSales] = useState([]);
-  const [products, setProducts] = useState([]); // for dropdown filter
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Filters State
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [productIdFilter, setProductIdFilter] = useState('');
 
-  // Receipt Modal State
   const [selectedSale, setSelectedSale] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -22,7 +20,6 @@ export default function SalesHistory() {
       setLoading(true);
       setError('');
 
-      // Build query string
       const params = {};
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
@@ -64,10 +61,24 @@ export default function SalesHistory() {
     setShowModal(true);
   };
 
+  const formatReceiptDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const optionsDate = { day: 'numeric', month: 'short', year: 'numeric' };
+    const optionsTime = { hour: 'numeric', minute: '2-digit', hour12: true };
+    
+    const dStr = date.toLocaleDateString('en-US', optionsDate);
+    const tStr = date.toLocaleTimeString('en-US', optionsTime);
+    
+    const parts = dStr.replace(',', '').split(' ');
+    if (parts.length === 3) {
+      return `${parts[1]} ${parts[0]} ${parts[2]}, ${tStr}`;
+    }
+    return `${dStr}, ${tStr}`;
+  };
+
   return (
     <div>
-      <div className="no-print">
-        {/* Query Filters */}
       <div className="card" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Calendar size={18} color="var(--text-muted)" />
@@ -106,7 +117,6 @@ export default function SalesHistory() {
         </div>
       </div>
 
-      {/* Main Table */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px' }}><RefreshCw className="animate-spin" /> Loading transactions...</div>
       ) : error ? (
@@ -118,7 +128,7 @@ export default function SalesHistory() {
               <thead>
                 <tr>
                   <th>Date & Time</th>
-                  <th>Transaction ID</th>
+                  <th>Customer</th>
                   <th>Products Sold</th>
                   <th>Calculated Total</th>
                   <th>Final Total</th>
@@ -137,10 +147,10 @@ export default function SalesHistory() {
                     const hasOverride = sale.finalTotal !== sale.calculatedTotal;
                     return (
                       <tr key={sale._id}>
-                        <td style={{ fontWeight: 500 }}>{new Date(sale.date).toLocaleString()}</td>
-                        <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{sale._id}</td>
+                        <td style={{ fontWeight: 500 }}>{formatReceiptDate(sale.date)}</td>
+                        <td style={{ fontWeight: 600 }}>{sale.customerName || 'Walk-in Customer'}</td>
                         <td>
-                          <div style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {sale.items.map(item => `${item.name} (x${item.quantity})`).join(', ')}
                           </div>
                         </td>
@@ -175,16 +185,15 @@ export default function SalesHistory() {
           </div>
         </div>
       )}
-      </div>
 
-      {/* Sale Detail Modal Overlay */}
       {showModal && selectedSale && (
         <div className="modal-overlay">
-          <div className="card modal-content" style={{ padding: '32px', maxWidth: '440px', fontFamily: 'var(--font-family)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)' }}>
-            
-            {/* Header: Close Button and Title */}
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Receipt Preview</span>
+          <div className="card modal-content" style={{ padding: '28px', maxWidth: '450px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Sale Receipt Details</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {selectedSale._id}</span>
+              </div>
               <button 
                 onClick={() => setShowModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}
@@ -193,81 +202,68 @@ export default function SalesHistory() {
               </button>
             </div>
 
-            {/* Header: Business Name & Subtitle */}
-            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-              <h2 style={{ fontSize: '1.45rem', fontWeight: 800, margin: '0 0 4px 0', letterSpacing: '0.5px', color: 'var(--text-main)', textTransform: 'uppercase' }}>Invoice</h2>
-              <div style={{ borderTop: '2px double var(--border-color)', margin: '14px 0 0 0' }}></div>
+            <div style={{ marginBottom: '12px', padding: '10px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Customer Name:</div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                <User size={16} color="var(--primary)" />
+                {selectedSale.customerName || 'Walk-in Customer'}
+              </div>
             </div>
 
-            {/* Customer & Date Info Section */}
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.7', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Customer Name:</span>
-                <span style={{ fontWeight: 700 }}>{selectedSale.customerName || "-"}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Date & Time:</span>
-                <span style={{ fontWeight: 500 }}>{new Date(selectedSale.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Invoice ID:</span>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 500 }}>{selectedSale._id}</span>
-              </div>
-              <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '14px' }}></div>
-            </div>
-
-            {/* Itemized Table Section */}
             <div style={{ marginBottom: '16px' }}>
-              <table style={{ width: '100%', fontSize: '0.9rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', fontWeight: 'bold', color: 'var(--text-muted)' }}>
-                    <th style={{ textAlign: 'left', paddingBottom: '8px' }}>Item</th>
-                    <th style={{ textAlign: 'center', paddingBottom: '8px', width: '40px' }}>Qty</th>
-                    <th style={{ textAlign: 'right', paddingBottom: '8px', width: '80px' }}>Price</th>
-                    <th style={{ textAlign: 'right', paddingBottom: '8px', width: '90px' }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedSale.items.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'left', fontWeight: 500 }}>{item.name}</td>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'center' }}>{item.quantity}</td>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'right' }}>₹{item.price.toFixed(2)}</td>
-                      <td style={{ paddingTop: '8px', paddingBottom: '8px', textAlign: 'right', fontWeight: 600 }}>₹{(item.price * item.quantity).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '10px' }}></div>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Transaction Date:</span>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                {formatReceiptDate(selectedSale.date)}
+              </div>
             </div>
 
-            {/* Totals Section */}
-            <div style={{ fontSize: '0.925rem', lineHeight: '1.7', marginBottom: '22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Calculated Total:</span>
-                <span style={{ textAlign: 'right', fontWeight: 500 }}>₹{selectedSale.calculatedTotal.toFixed(2)}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', borderBottom: '1px dashed var(--border-color)', paddingBottom: '16px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Products Purchased:</span>
+              {selectedSale.items.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{item.name}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginLeft: '6px' }}>
+                      (x{item.quantity} at ₹{item.price.toFixed(2)}/ea)
+                    </span>
+                  </div>
+                  <span style={{ fontWeight: 700 }}>₹{(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '28px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Original Calculated Total:</span>
+                <span>₹{selectedSale.calculatedTotal.toFixed(2)}</span>
               </div>
 
-              {selectedSale.finalTotal !== selectedSale.calculatedTotal && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--warning)', fontWeight: 600, padding: '2px 0' }}>
-                  <span>Price Override Discount:</span>
-                  <span style={{ textAlign: 'right' }}>-₹{(selectedSale.calculatedTotal - selectedSale.finalTotal).toFixed(2)}</span>
-                </div>
-              )}
-
-              <div style={{ borderTop: '2px double var(--border-color)', margin: '10px 0 8px 0' }}></div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.35rem', fontWeight: 800 }}>
-                <span style={{ color: 'var(--text-main)', letterSpacing: '0.25px' }}>FINAL TOTAL:</span>
-                <span style={{ color: selectedSale.finalTotal !== selectedSale.calculatedTotal ? 'var(--warning)' : 'var(--primary)', textAlign: 'right' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                <span>Final Billed Total:</span>
+                <span style={{ color: selectedSale.finalTotal !== selectedSale.calculatedTotal ? 'var(--warning)' : 'inherit' }}>
                   ₹{selectedSale.finalTotal.toFixed(2)}
                 </span>
               </div>
-              <div style={{ borderTop: '2px double var(--border-color)', marginTop: '8px' }}></div>
+
+              {selectedSale.finalTotal !== selectedSale.calculatedTotal && (
+                <div style={{
+                  backgroundColor: 'var(--warning-light)',
+                  color: 'var(--warning)',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginTop: '4px'
+                }}>
+                  <span>Adjustment Discount:</span>
+                  <span>-₹{(selectedSale.calculatedTotal - selectedSale.finalTotal).toFixed(2)}</span>
+                </div>
+              )}
             </div>
 
-            {/* Actions Footer */}
-            <div className="no-print" style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 className="btn btn-danger" 
                 onClick={() => handleRefund(selectedSale._id)}

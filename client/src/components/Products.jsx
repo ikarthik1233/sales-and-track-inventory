@@ -7,16 +7,13 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Search and Filter States
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   
-  // Form modal states
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
+  const [modalMode, setModalMode] = useState('add');
   const [selectedProductId, setSelectedProductId] = useState(null);
   
-  // Input fields
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [price, setPrice] = useState('');
@@ -107,10 +104,8 @@ export default function Products() {
     }
   };
 
-  // Get unique categories for dropdown filter
   const categories = [...new Set(products.map(p => p.category))].sort();
 
-  // Filter products by search terms and dropdown category
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
                           p.category.toLowerCase().includes(search.toLowerCase());
@@ -120,7 +115,6 @@ export default function Products() {
 
   return (
     <div>
-      {/* Search & Actions Bar */}
       <div className="card" style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px' }}>
           <div style={{ position: 'relative', flex: 1 }}>
@@ -160,75 +154,134 @@ export default function Products() {
         </button>
       </div>
 
-      {/* Main Table */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px' }}><RefreshCw className="animate-spin" /> Loading inventory...</div>
       ) : error ? (
         <div className="card" style={{ color: 'var(--danger)' }}>{error}</div>
       ) : (
-        <div className="card" style={{ padding: '0px' }}>
-          <div className="table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Product Name</th>
-                  <th>Category</th>
-                  <th>Unit Price</th>
-                  <th>Stock Quantity</th>
-                  <th>Low-Stock Alert Level</th>
-                  <th className="no-print" style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.length === 0 ? (
+        <>
+          {/* Desktop/Tablet Table view */}
+          <div className="card product-desktop-view" style={{ padding: '0px' }}>
+            <div className="table-container">
+              <table className="custom-table">
+                <thead>
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '32px' }}>
-                      No products found matching filters.
-                    </td>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Unit Price</th>
+                    <th>Stock Quantity</th>
+                    <th>Low-Stock Alert Level</th>
+                    <th className="no-print" style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
-                ) : (
-                  filteredProducts.map(prod => {
-                    const isLowStock = prod.stockQuantity < prod.lowStockThreshold;
-                    return (
-                      <tr key={prod._id}>
-                        <td style={{ fontWeight: 600 }}>{prod.name}</td>
-                        <td>{prod.category}</td>
-                        <td>₹{prod.price.toFixed(2)}</td>
-                        <td>
-                          <span className={`badge ${isLowStock ? 'badge-danger' : 'badge-success'}`}>
-                            {prod.stockQuantity} items
-                          </span>
-                        </td>
-                        <td>Below {prod.lowStockThreshold} units</td>
-                        <td className="no-print" style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'inline-flex', gap: '8px' }}>
-                            <button
-                              className="btn btn-secondary btn-icon"
-                              onClick={() => openEditModal(prod)}
-                              title="Edit Product"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              className="btn btn-danger btn-icon"
-                              onClick={() => handleDelete(prod._id, prod.name)}
-                              title="Delete Product"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '32px' }}>
+                        No products found matching filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredProducts.map(prod => {
+                      const isLowStock = prod.stockQuantity < prod.lowStockThreshold;
+                      return (
+                        <tr key={prod._id}>
+                          <td style={{ fontWeight: 600 }}>{prod.name}</td>
+                          <td>{prod.category}</td>
+                          <td>₹{prod.price.toFixed(2)}</td>
+                          <td>
+                            <span className={`badge ${isLowStock ? 'badge-danger' : 'badge-success'}`}>
+                              {prod.stockQuantity} items
+                            </span>
+                          </td>
+                          <td>Below {prod.lowStockThreshold} units</td>
+                          <td className="no-print" style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '8px' }}>
+                              <button
+                                className="btn btn-secondary btn-icon"
+                                onClick={() => openEditModal(prod)}
+                                title="Edit Product"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                className="btn btn-danger btn-icon"
+                                onClick={() => handleDelete(prod._id, prod.name)}
+                                title="Delete Product"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile Card list view */}
+          <div className="products-mobile-view">
+            {filteredProducts.length === 0 ? (
+              <div className="card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '32px' }}>
+                No products found matching filters.
+              </div>
+            ) : (
+              filteredProducts.map(prod => {
+                const isLowStock = prod.stockQuantity < prod.lowStockThreshold;
+                return (
+                  <div key={prod._id} className="card product-mobile-card">
+                    <div className="product-card-header">
+                      <div className="product-card-title-block">
+                        <h4 className="product-card-title">{prod.name}</h4>
+                        <span className="badge badge-success product-card-category" style={{ marginTop: '4px' }}>
+                          {prod.category}
+                        </span>
+                      </div>
+                      <span className="product-card-price">₹{prod.price.toFixed(2)}</span>
+                    </div>
+
+                    <div className="product-card-details">
+                      <div className="product-card-detail-row">
+                        <span className="detail-label">Stock Quantity:</span>
+                        <span className={`badge ${isLowStock ? 'badge-danger' : 'badge-success'}`}>
+                          {prod.stockQuantity} items
+                        </span>
+                      </div>
+                      <div className="product-card-detail-row">
+                        <span className="detail-label">Alert Level:</span>
+                        <span className="detail-value">Below {prod.lowStockThreshold} units</span>
+                      </div>
+                    </div>
+
+                    <div className="product-card-actions">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => openEditModal(prod)}
+                        style={{ flex: 1 }}
+                        title="Edit Product"
+                      >
+                        <Edit2 size={16} /> Edit
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDelete(prod._id, prod.name)}
+                        style={{ flex: 1 }}
+                        title="Delete Product"
+                      >
+                        <Trash2 size={16} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
       )}
 
-      {/* CRUD Overlay Modal Form */}
       {showModal && (
         <div className="modal-overlay">
           <div className="card modal-content" style={{ padding: '28px' }}>
@@ -322,7 +375,7 @@ export default function Products() {
                   type="number"
                   min="0"
                   className="form-input"
-                  placeholder="e.g. 10 (triggers dashboard warn)"
+                  placeholder="e.g. 10"
                   value={lowStockThreshold}
                   onChange={(e) => setLowStockThreshold(e.target.value)}
                 />

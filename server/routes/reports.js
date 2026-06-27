@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Sale from '../models/Sale.js';
 import Product from '../models/Product.js';
 import auth from '../middleware/auth.js';
@@ -13,7 +14,6 @@ router.get('/daily', auth, async (req, res) => {
       return res.status(400).json({ message: 'Date parameter (YYYY-MM-DD) is required' });
     }
 
-    // Set boundaries using local date boundary parsing
     const start = new Date(`${date}T00:00:00`);
     const end = new Date(`${date}T23:59:59.999`);
 
@@ -21,10 +21,13 @@ router.get('/daily', auth, async (req, res) => {
       return res.status(400).json({ message: 'Invalid date format' });
     }
 
-    // Aggregate daily stats
+    const shopObjectId = new mongoose.Types.ObjectId(req.shopId);
+
+    // Aggregate daily stats filtered by shopId
     const summary = await Sale.aggregate([
       {
         $match: {
+          shopId: shopObjectId,
           date: { $gte: start, $lte: end }
         }
       },
@@ -38,10 +41,11 @@ router.get('/daily', auth, async (req, res) => {
       }
     ]);
 
-    // Aggregate items sold
+    // Aggregate items sold filtered by shopId
     const itemsSold = await Sale.aggregate([
       {
         $match: {
+          shopId: shopObjectId,
           date: { $gte: start, $lte: end }
         }
       },
@@ -50,7 +54,7 @@ router.get('/daily', auth, async (req, res) => {
         $group: {
           _id: '$items.productId',
           name: { $first: '$items.name' },
-          price: { $first: '$items.price' }, // sale unit price
+          price: { $first: '$items.price' },
           totalQuantity: { $sum: '$items.quantity' },
           totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
         }
@@ -73,7 +77,9 @@ router.get('/daily', auth, async (req, res) => {
 // GET dashboard summary stats: /api/reports/summary
 router.get('/summary', auth, async (req, res) => {
   try {
-    // 1. Today's stats
+    const shopObjectId = new mongoose.Types.ObjectId(req.shopId);
+
+    // 1. Today's stats filtered by shopId
     const todayStr = new Date().toISOString().split('T')[0];
     const todayStart = new Date(`${todayStr}T00:00:00`);
     const todayEnd = new Date(`${todayStr}T23:59:59.999`);
@@ -81,6 +87,7 @@ router.get('/summary', auth, async (req, res) => {
     const todayStats = await Sale.aggregate([
       {
         $match: {
+          shopId: shopObjectId,
           date: { $gte: todayStart, $lte: todayEnd }
         }
       },
@@ -93,12 +100,13 @@ router.get('/summary', auth, async (req, res) => {
       }
     ]);
 
-    // 2. Low stock items
+    // 2. Low stock items filtered by shopId
     const lowStockProducts = await Product.find({
+      shopId: req.shopId,
       $expr: { $lt: ['$stockQuantity', '$lowStockThreshold'] }
     }).sort({ stockQuantity: 1 });
 
-    // 3. 7-Day Trend Chart
+    // 3. 7-Day Trend Chart filtered by shopId
     const trendDays = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -111,6 +119,7 @@ router.get('/summary', auth, async (req, res) => {
       const dayStats = await Sale.aggregate([
         {
           $match: {
+            shopId: shopObjectId,
             date: { $gte: dayStart, $lte: dayEnd }
           }
         },

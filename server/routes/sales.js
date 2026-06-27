@@ -5,11 +5,11 @@ import auth from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET sales history with filters
+// GET sales history with filters for the logged-in shop
 router.get('/', auth, async (req, res) => {
   try {
     const { startDate, endDate, productId } = req.query;
-    const query = {};
+    const query = { shopId: req.shopId }; // Filter by active shopId
 
     // Date range filter
     if (startDate || endDate) {
@@ -19,7 +19,7 @@ router.get('/', auth, async (req, res) => {
       }
       if (endDate) {
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // include the entire end day
+        end.setHours(23, 59, 59, 999);
         query.date.$lte = end;
       }
     }
@@ -36,10 +36,9 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// POST record a new sale
+// POST record a new sale for the logged-in shop
 router.post('/', auth, async (req, res) => {
   try {
-    console.log('Backend POST /api/sales received req.body:', req.body);
     const { items, finalTotal, customerName } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -49,7 +48,7 @@ router.post('/', auth, async (req, res) => {
     const processedItems = [];
     let calculatedTotal = 0;
 
-    // Step 1: Validate stock and build sale items with current pricing
+    // Step 1: Validate stock from products belonging to this shop
     for (const cartItem of items) {
       const { productId, quantity } = cartItem;
 
@@ -57,7 +56,7 @@ router.post('/', auth, async (req, res) => {
         return res.status(400).json({ message: 'Invalid product id or quantity' });
       }
 
-      const product = await Product.findById(productId);
+      const product = await Product.findOne({ _id: productId, shopId: req.shopId });
       if (!product) {
         return res.status(404).json({ message: `Product not found: ${productId}` });
       }
@@ -80,18 +79,19 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Step 2: Deduct stock from database
+    // Step 2: Deduct stock from active shop's database inventory
     for (const item of processedItems) {
-      await Product.findByIdAndUpdate(item.productId, {
-        $inc: { stockQuantity: -item.quantity }
-      });
+      await Product.findOneAndUpdate(
+        { _id: item.productId, shopId: req.shopId },
+        { $inc: { stockQuantity: -item.quantity } }
+      );
     }
 
-    // Step 3: Save transaction record
+    // Step 3: Save transaction record with shopId
     const newSale = new Sale({
+      shopId: req.shopId,
       items: processedItems,
       calculatedTotal,
-      // If finalTotal is not specified or edited, default to calculatedTotal
       finalTotal: finalTotal !== undefined && finalTotal !== null ? Number(finalTotal) : calculatedTotal,
       customerName: customerName !== undefined ? String(customerName) : "",
       date: new Date()
@@ -104,24 +104,24 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// POST refund/cancel a sale (restores inventory)
+// POST refund/cancel a sale for the logged-in shop (restores inventory)
 router.post('/:id/refund', auth, async (req, res) => {
   try {
-    const sale = await Sale.findById(req.params.id);
+    const sale = await Sale.findOne({ _id: req.params.id, shopId: req.shopId });
     if (!sale) {
-      return res.status(404).json({ message: 'Sale record not found' });
+      return res.status(404).json({ message: 'Sale record not found in your shop history' });
     }
 
-    // Restore stock for all products in the sale
+    // Restore stock for all products in the active shop's inventory
     for (const item of sale.items) {
-      await Product.findByIdAndUpdate(item.productId, {
-        $inc: { stockQuantity: item.quantity }
-      });
+      await Product.findOneAndUpdate(
+        { _id: item.productId, shopId: req.shopId },
+        { $inc: { stockQuantity: item.quantity } }
+      );
     }
 
-    // Delete the sale record or mark it as refunded. Let's delete it for inventory simplicity or keep history.
-    // Deleting is requested, let's delete the record.
-    await Sale.findByIdAndDelete(req.params.id);
+    // Delete the sale record belonging to this shop
+    await Sale.findOneAndDelete({ _id: req.params.id, shopId: req.shopId });
 
     res.json({ message: 'Sale refunded successfully and stock levels restored', id: req.params.id });
   } catch (err) {

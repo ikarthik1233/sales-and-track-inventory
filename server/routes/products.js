@@ -4,17 +4,17 @@ import auth from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET all products
+// GET all products for the logged-in shop
 router.get('/', auth, async (req, res) => {
   try {
-    const products = await Product.find().sort({ name: 1 });
+    const products = await Product.find({ shopId: req.shopId }).sort({ name: 1 });
     res.json(products);
   } catch (err) {
     res.status(500).json({ message: 'Error retrieving products', error: err.message });
   }
 });
 
-// POST create a product
+// POST create a product under the logged-in shop
 router.post('/', auth, async (req, res) => {
   try {
     const { name, category, price, stockQuantity, lowStockThreshold } = req.body;
@@ -23,12 +23,14 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Required fields are missing' });
     }
 
-    const existingProduct = await Product.findOne({ name: name.trim() });
+    // Check if name is unique inside the active shop
+    const existingProduct = await Product.findOne({ shopId: req.shopId, name: name.trim() });
     if (existingProduct) {
-      return res.status(400).json({ message: 'Product with this name already exists' });
+      return res.status(400).json({ message: 'Product with this name already exists in your inventory' });
     }
 
     const newProduct = new Product({
+      shopId: req.shopId,
       name: name.trim(),
       category: category.trim(),
       price: Number(price),
@@ -43,23 +45,24 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// PUT update a product
+// PUT update a product under the logged-in shop
 router.put('/:id', auth, async (req, res) => {
   try {
     const { name, category, price, stockQuantity, lowStockThreshold } = req.body;
 
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findOne({ _id: req.params.id, shopId: req.shopId });
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ message: 'Product not found in your inventory' });
     }
 
     if (name) {
       const existingProduct = await Product.findOne({ 
+        shopId: req.shopId,
         name: name.trim(), 
         _id: { $ne: req.params.id } 
       });
       if (existingProduct) {
-        return res.status(400).json({ message: 'Another product with this name already exists' });
+        return res.status(400).json({ message: 'Another product with this name already exists in your inventory' });
       }
       product.name = name.trim();
     }
@@ -76,12 +79,12 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE a product
+// DELETE a product under the logged-in shop
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+    const deletedProduct = await Product.findOneAndDelete({ _id: req.params.id, shopId: req.shopId });
     if (!deletedProduct) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ message: 'Product not found in your inventory' });
     }
     res.json({ message: 'Product deleted successfully', id: req.params.id });
   } catch (err) {

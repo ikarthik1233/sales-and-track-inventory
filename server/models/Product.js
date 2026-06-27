@@ -1,10 +1,14 @@
 import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema({
+  shopId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Shop',
+    required: true
+  },
   name: {
     type: String,
     required: true,
-    unique: true,
     trim: true
   },
   category: {
@@ -31,6 +35,9 @@ const productSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// We can add a compound index so name is unique per shop
+productSchema.index({ shopId: 1, name: 1 }, { unique: true });
 
 const Product = mongoose.model('Product', productSchema);
 export default Product;

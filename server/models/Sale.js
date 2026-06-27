@@ -23,6 +23,11 @@ const saleItemSchema = new mongoose.Schema({
 });
 
 const saleSchema = new mongoose.Schema({
+  shopId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Shop',
+    required: true
+  },
   items: [saleItemSchema],
   calculatedTotal: {
     type: Number,

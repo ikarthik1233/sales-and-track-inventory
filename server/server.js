@@ -39,15 +39,22 @@ const seedInventory = async () => {
   try {
     const count = await Product.countDocuments();
     if (count === 0) {
-      const demoProducts = [
-        { name: 'Organic Coffee Beans (1kg)', category: 'Grocery', price: 24.99, stockQuantity: 45, lowStockThreshold: 10 },
-        { name: 'Double-walled Glass Mug', category: 'Kitchenware', price: 12.50, stockQuantity: 8, lowStockThreshold: 10 }, // trigger warning
-        { name: 'Eco-friendly Straws (50 pack)', category: 'Kitchenware', price: 4.99, stockQuantity: 120, lowStockThreshold: 20 },
-        { name: 'Premium Matcha Powder (100g)', category: 'Grocery', price: 19.99, stockQuantity: 5, lowStockThreshold: 10 }, // trigger warning
-        { name: 'French Press Coffee Maker', category: 'Kitchenware', price: 34.95, stockQuantity: 15, lowStockThreshold: 5 }
-      ];
-      await Product.insertMany(demoProducts);
-      console.log('Successfully seeded database with starter products.');
+      // Import Shop model dynamically or directly to look up first shop
+      const Shop = mongoose.model('Shop');
+      const firstShop = await Shop.findOne();
+      if (firstShop) {
+        const demoProducts = [
+          { shopId: firstShop._id, name: 'Organic Coffee Beans (1kg)', category: 'Grocery', price: 24.99, stockQuantity: 45, lowStockThreshold: 10 },
+          { shopId: firstShop._id, name: 'Double-walled Glass Mug', category: 'Kitchenware', price: 12.50, stockQuantity: 8, lowStockThreshold: 10 }, 
+          { shopId: firstShop._id, name: 'Eco-friendly Straws (50 pack)', category: 'Kitchenware', price: 4.99, stockQuantity: 120, lowStockThreshold: 20 },
+          { shopId: firstShop._id, name: 'Premium Matcha Powder (100g)', category: 'Grocery', price: 19.99, stockQuantity: 5, lowStockThreshold: 10 }, 
+          { shopId: firstShop._id, name: 'French Press Coffee Maker', category: 'Kitchenware', price: 34.95, stockQuantity: 15, lowStockThreshold: 5 }
+        ];
+        await Product.insertMany(demoProducts);
+        console.log('Successfully seeded database with starter products for the first shop.');
+      } else {
+        console.log('No registered shops found. Skipping starter product seed.');
+      }
     }
   } catch (err) {
     console.error('Error seeding starter products:', err.message);

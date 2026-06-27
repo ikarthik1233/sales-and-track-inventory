@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api.js';
-import { Calendar, Download, Printer, RefreshCw, AlertTriangle, ChevronRight, BarChart } from 'lucide-react';
+import { Calendar, Download, Printer, RefreshCw, AlertTriangle, BarChart } from 'lucide-react';
 
 export default function DailyReport() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -28,7 +28,6 @@ export default function DailyReport() {
     }
   }, [date]);
 
-  // Export to Excel (CSV format)
   const exportToExcel = () => {
     if (!reportData) return;
 
@@ -36,21 +35,16 @@ export default function DailyReport() {
     const avgTicket = transactionCount > 0 ? (totalRevenue / transactionCount) : 0;
 
     let csvContent = "data:text/csv;charset=utf-8,";
-    
-    // Header Section
     csvContent += `DAILY SALES & INVENTORY REPORT - ${date}\n\n`;
-    
-    // Metrics Section
     csvContent += "REPORT SUMMARY METRICS\n";
-    csvContent += `Total Revenue (Final Billed), ₹${totalRevenue.toFixed(2)}\n`;
+    csvContent += `Total Revenue (Final Billed), INR ${totalRevenue.toFixed(2)}\n`;
     csvContent += `Total Transactions, ${transactionCount}\n`;
-    csvContent += `Average Transaction Value, ₹${avgTicket.toFixed(2)}\n`;
-    csvContent += `Original Calculated Total, ₹${originalTotalRevenue.toFixed(2)}\n`;
-    csvContent += `Total Price Adjustments/Discounts, ₹${(originalTotalRevenue - totalRevenue).toFixed(2)}\n\n`;
+    csvContent += `Average Transaction Value, INR ${avgTicket.toFixed(2)}\n`;
+    csvContent += `Original Calculated Total, INR ${originalTotalRevenue.toFixed(2)}\n`;
+    csvContent += `Total Price Adjustments/Discounts, INR ${(originalTotalRevenue - totalRevenue).toFixed(2)}\n\n`;
 
-    // Items Breakdown Section
     csvContent += "PRODUCT SALES BREAKDOWN\n";
-    csvContent += "Product ID,Product Name,Unit Price (₹),Total Quantity Sold,Subtotal Revenue (₹)\n";
+    csvContent += "Product ID,Product Name,Unit Price (INR),Total Quantity Sold,Subtotal Revenue (INR)\n";
 
     if (itemsSold.length === 0) {
       csvContent += ",No items sold today,,,\n";
@@ -60,7 +54,6 @@ export default function DailyReport() {
       });
     }
 
-    // Trigger File Download
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -70,14 +63,12 @@ export default function DailyReport() {
     document.body.removeChild(link);
   };
 
-  // Export to PDF (triggers system printer dialog)
   const exportToPDF = () => {
     window.print();
   };
 
   return (
     <div>
-      {/* Date selector header */}
       <div className="card no-print" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Calendar size={18} color="var(--text-muted)" />
@@ -111,7 +102,6 @@ export default function DailyReport() {
         </div>
       </div>
 
-      {/* Printable Report Header */}
       {reportData && (
         <div className="print-header" style={{ borderBottom: '2px solid #000', paddingBottom: '16px' }}>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>DAILY SALES SUMMARY REPORT</h1>
@@ -129,7 +119,6 @@ export default function DailyReport() {
       ) : reportData ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* Daily metrics cards */}
           <div className="kpi-grid">
             <div className="card kpi-card">
               <div className="kpi-icon-wrapper" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
@@ -164,7 +153,6 @@ export default function DailyReport() {
             </div>
           </div>
 
-          {/* Pricing Adjustments Alert Card */}
           {reportData.originalTotalRevenue !== reportData.totalRevenue && (
             <div className="card no-print" style={{
               backgroundColor: 'var(--warning-light)',
@@ -185,7 +173,6 @@ export default function DailyReport() {
             </div>
           )}
 
-          {/* Product breakdown list */}
           <div className="card">
             <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               Product Sales Breakdown

@@ -18,6 +18,12 @@ const auth = (req, res, next) => {
     }
 
     req.user = verified;
+    req.shopId = verified.shopId || verified.id; // Attach shopId to the request context
+    
+    if (!req.shopId) {
+      return res.status(401).json({ message: 'Invalid token structure, shop identity missing' });
+    }
+
     next();
   } catch (err) {
     res.status(401).json({ message: 'Token is not valid', error: err.message });
